@@ -1,6 +1,5 @@
 // Establish WebSocket connection
-let socket = new WebSocket("wss://upcycle.onrender.com");
-// https://upcycle.onrender.com
+let socket = new WebSocket("ws://localhost:5000");
 
 // Handle connection establishment
 socket.onopen = () => {
