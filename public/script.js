@@ -1,5 +1,5 @@
 // Establish WebSocket connection
-let socket = new WebSocket("wss://localhost:5000");
+let socket = new WebSocket("ws://localhost:5000");
 
 // Handle connection establishment
 socket.onopen = () => {
