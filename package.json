@@ -1,0 +1,33 @@
+{
+  "name": "upcycle",
+  "version": "1.0.0",
+  "description": "an for ideas to upcycle trash instead of throwing them in the trash ",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "upcycle "
+  },
+  "keywords": [
+    "AI",
+    "recycable",
+    "upcycle",
+    "competetion",
+    "app"
+  ],
+  "author": "Upcycle Pioneers",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.19.2",
+    "mongoose": "^8.3.2",
+    "morgan": "^1.10.0",
+    "nodemon": "^3.1.0",
+    "ws": "^8.17.0"
+  }
+}
