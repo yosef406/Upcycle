@@ -5,56 +5,64 @@ const { v4: uuidv4 } = require("uuid");
 
 const PORT = process.env.PORT || 5000;
 // ***************************************************** WebSocket
-
 const wss = new WebSocket.Server({ server: server });
-let clients = { AI: null, clients: [] };
-let responses = {}; //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+let conn = { AI: null, clients: [] };
+
 wss.on("connection", (ws) => {
   console.log("Client connected");
 
   ws.on("message", (msg) => {
-    console.log(msg.toString());
     let parsedMsg = null;
     try {
       parsedMsg = JSON.parse(msg.toString());
     } catch (error) {
-      console.log(error);
-      parsedMsg = null;
+      console.log("Failed to parse message:", error);
+      return;
     }
 
     if (parsedMsg) {
-      console.log(parsedMsg.type);
-      if (parsedMsg.type == "client") clients.clients.push(ws);
-      else if (parsedMsg.type == "AI") clients.AI = ws;
-    }
-    for (let i = 0; i < clients.clients.length; i++) {
-      console.log(i);
-    }
-    wss.clients.forEach((element) => {
-      element.send(clients.clients.length);
-    });
+      console.log("Received message of type:", parsedMsg.type);
 
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // Handle messages from AI client
-    if (parsedMsg && parsedMsg.uuid && responses[parsedMsg.uuid]) {
-      // Send response back to the original HTTP client
-      responses[parsedMsg.uuid].send({
-        type: "AI-response",
-        data: parsedMsg.data,
-      });
-      delete responses[parsedMsg.uuid]; // Cleanup
+      switch (parsedMsg.type) {
+        case "client":
+          if (!conn.clients.includes(ws)) conn.clients.push(ws);
+          conn.clients.forEach((c) => {
+            if (ws != c) {
+              c.send(JSON.stringify({ message: parsedMsg.message }));
+            }
+          });
+          break;
+        case "AI":
+          // Register the AI client
+          clients.AI = ws;
+          break;
+        case "user":
+          // User message that needs to be processed by AI
+          if (conn.AI) {
+            conn.AI.send(JSON.stringify(parsedMsg));
+          }
+          break;
+        default:
+          console.log("Unhandled message type:", parsedMsg.type);
+      }
     }
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   });
 
-  // Handle disconnections
   ws.on("close", () => {
     console.log("Client disconnected");
-    clients.clients.splice(clients.clients.indexOf(ws), 1);
+    if (ws === conn.AI) {
+      console.log("AI client disconnected");
+      clients.AI = null;
+    } else {
+      let index = conn.clients.indexOf(ws);
+      if (index !== -1) {
+        conn.clients.splice(index, 1);
+      }
+    }
   });
 });
 
-// ********************************************* app
+// ********************************************* app/http
 const app = express();
 app.use(express.json());
 app.use(express.static("public"));

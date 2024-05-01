@@ -4,14 +4,37 @@ let socket = new WebSocket("ws://localhost:5000");
 // Handle connection establishment
 socket.onopen = () => {
   console.log("Connected to the server");
-  // Send a message to the server upon connection
-  socket.send(JSON.stringify({ message: "Hello Server !", type: "client" }));
+  socket.send(JSON.stringify({ message: "", type: "client" }));
 };
+
+// Send message function
+function sendMessage() {
+  const input = document.getElementById("messageInput");
+  if (input.value.trim() !== "") {
+    socket.send(JSON.stringify({ message: input.value, type: "client" }));
+    const outputDiv = document.getElementById("output");
+    outputDiv.innerHTML += `<p style="color:green;">${input.value}</p>`;
+    input.value = ""; // Clear input after sending
+  }
+}
+
+// Send message on button click
+document.getElementById("sendButton").addEventListener("click", sendMessage);
+
+// Send message on enter key press
+document
+  .getElementById("messageInput")
+  .addEventListener("keypress", (event) => {
+    if (event.key === "Enter") {
+      sendMessage();
+    }
+  });
 
 // Handle incoming messages from the server
 socket.onmessage = (event) => {
   const outputDiv = document.getElementById("output");
-  outputDiv.innerHTML += `<p>${event.data}</p>`;
+  const messageData = JSON.parse(event.data);
+  outputDiv.innerHTML += `<p style="color:blue;">${messageData.message}</p>`; // Assuming server sends JSON with a message field
 };
 
 // Handle disconnection
@@ -21,8 +44,9 @@ socket.onclose = () => {
 
 // Handle errors
 socket.onerror = (error) => {
-  console.log("Error occurred while establishing connection:", error);
+  console.log("Error occurred:", error);
 };
 
-$("h1").html("next step");
+// jQuery example (this can be removed if not needed)
+$("h1").html("Upcycle Pioneers Chat");
 console.log($("h1"));
