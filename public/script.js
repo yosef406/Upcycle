@@ -4,14 +4,16 @@ let socket = new WebSocket("ws://localhost:5000");
 // Handle connection establishment
 socket.onopen = () => {
   console.log("Connected to the server");
-  socket.send(JSON.stringify({ message: "", type: "client" }));
+  socket.send(JSON.stringify({ message: "", request: "open", type: "client" }));
 };
 
 // Send message function
 function sendMessage() {
   const input = document.getElementById("messageInput");
   if (input.value.trim() !== "") {
-    socket.send(JSON.stringify({ message: input.value, type: "client" }));
+    socket.send(
+      JSON.stringify({ message: input.value, request: "AI", type: "client" })
+    );
     const outputDiv = document.getElementById("output");
     outputDiv.innerHTML += `<p style="color:green;">${input.value}</p>`;
     input.value = ""; // Clear input after sending

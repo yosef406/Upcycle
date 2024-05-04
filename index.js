@@ -25,16 +25,32 @@ wss.on("connection", (ws) => {
 
       switch (parsedMsg.type) {
         case "client":
-          if (!conn.clients.includes(ws)) conn.clients.push(ws);
-          conn.clients.forEach((c) => {
-            if (ws != c) {
-              c.send(JSON.stringify({ message: parsedMsg.message }));
-            }
-          });
+          if (
+            parsedMsg.request == "AI" &&
+            conn.AI.readyState === WebSocket.OPEN
+          ) {
+            conn.AI.send(msg);
+          } else if (parsedMsg.request == "open") {
+            conn.clients.push(ws);
+          } else {
+            conn.clients.forEach((c) => {
+              if (ws != c) {
+                c.send(JSON.stringify({ message: parsedMsg.message }));
+              }
+            });
+          }
           break;
         case "AI":
           // Register the AI client
-          clients.AI = ws;
+          if (parsedMsg.request == "open") {
+            conn.AI = ws;
+          } else {
+            conn.clients.forEach((c) => {
+              if (ws != c) {
+                c.send(JSON.stringify({ message: parsedMsg.message }));
+              }
+            });
+          }
           break;
         case "user":
           // User message that needs to be processed by AI
@@ -52,7 +68,7 @@ wss.on("connection", (ws) => {
     console.log("Client disconnected");
     if (ws === conn.AI) {
       console.log("AI client disconnected");
-      clients.AI = null;
+      conn.AI = null;
     } else {
       let index = conn.clients.indexOf(ws);
       if (index !== -1) {
