@@ -2,8 +2,42 @@ const server = require("http").createServer();
 const express = require("express");
 const WebSocket = require("ws");
 const { v4: uuidv4 } = require("uuid");
+import OpenAI from "openai";
 
 const PORT = process.env.PORT || 5000;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// ***************************************************** open ai
+const openai = new OpenAI();
+
+async function openAiVision(params) {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4-turbo",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "What’s in this image?" },
+          {
+            type: "image_url",
+            image_url: {
+              url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+            },
+          },
+        ],
+      },
+    ],
+  });
+  console.log(response.choices[0]);
+}
+async function openAiImages(params) {
+  const image = await openai.images.generate({
+    model: "dall-e-3",
+    prompt: "A cute baby sea otter",
+  });
+
+  console.log(image.data);
+}
+
 // ***************************************************** WebSocket
 const wss = new WebSocket.Server({ server: server });
 let conn = { AI: null, clientsID: {}, clientsWs: {} };
