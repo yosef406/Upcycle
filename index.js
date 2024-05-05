@@ -24,10 +24,10 @@ wss.on("connection", (ws) => {
       console.log("Received message of type:", parsedMsg.type);
       switch (parsedMsg.type) {
         case "client":
-          handleClient(parsedMsg);
+          handleClient(ws, parsedMsg);
           break;
         case "AI":
-          handleAI(parsedMsg);
+          handleAI(ws, parsedMsg);
           break;
         default:
           console.log("Unhandled message type:", parsedMsg.type);
@@ -50,7 +50,7 @@ wss.on("connection", (ws) => {
   });
 });
 
-function handleClient(parsedMsg) {
+function handleClient(ws, parsedMsg) {
   if (parsedMsg.request == "AI" && conn.AI.readyState === WebSocket.OPEN) {
     // send the id of the requester
     let requester = conn.clientsWs[ws];
@@ -68,7 +68,7 @@ function handleClient(parsedMsg) {
   }
 }
 
-function handleAI(parsedMsg) {
+function handleAI(ws, parsedMsg) {
   // Register the AI client
   if (parsedMsg.request == "open") {
     conn.AI = ws;
