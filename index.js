@@ -41,7 +41,7 @@ wss.on("connection", (ws) => {
       console.log("AI client disconnected");
       conn.AI = null;
     } else {
-      let id = conn.clientWS[ws];
+      let id = conn.clientsWs[ws];
       if (id) {
         delete conn.clientsID[id];
         delete conn.clientsWs[ws];
