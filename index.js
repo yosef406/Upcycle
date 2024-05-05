@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const PORT = process.env.PORT || 5000;
 // ***************************************************** WebSocket
 const wss = new WebSocket.Server({ server: server });
-let conn = { AI: null, clients: [] };
+let conn = { AI: null, clientsID: {}, clientsWs: {} };
 
 wss.on("connection", (ws) => {
   console.log("Client connected");
@@ -22,41 +22,12 @@ wss.on("connection", (ws) => {
 
     if (parsedMsg) {
       console.log("Received message of type:", parsedMsg.type);
-
       switch (parsedMsg.type) {
         case "client":
-          if (
-            parsedMsg.request == "AI" &&
-            conn.AI.readyState === WebSocket.OPEN
-          ) {
-            conn.AI.send(msg);
-          } else if (parsedMsg.request == "open") {
-            conn.clients.push(ws);
-          } else {
-            conn.clients.forEach((c) => {
-              if (ws != c) {
-                c.send(JSON.stringify({ message: parsedMsg.message }));
-              }
-            });
-          }
+          handleClient(parsedMsg);
           break;
         case "AI":
-          // Register the AI client
-          if (parsedMsg.request == "open") {
-            conn.AI = ws;
-          } else {
-            conn.clients.forEach((c) => {
-              if (ws != c) {
-                c.send(JSON.stringify({ message: parsedMsg.message }));
-              }
-            });
-          }
-          break;
-        case "user":
-          // User message that needs to be processed by AI
-          if (conn.AI) {
-            conn.AI.send(JSON.stringify(parsedMsg));
-          }
+          handleAI(parsedMsg);
           break;
         default:
           console.log("Unhandled message type:", parsedMsg.type);
@@ -70,13 +41,42 @@ wss.on("connection", (ws) => {
       console.log("AI client disconnected");
       conn.AI = null;
     } else {
-      let index = conn.clients.indexOf(ws);
-      if (index !== -1) {
-        conn.clients.splice(index, 1);
+      let id = conn.clientWS[ws];
+      if (id) {
+        delete conn.clientsID[id];
+        delete conn.clientsWs[ws];
       }
     }
   });
 });
+
+function handleClient(parsedMsg) {
+  if (parsedMsg.request == "AI" && conn.AI.readyState === WebSocket.OPEN) {
+    // send the id of the requester
+    let requester = conn.clientsWs[ws];
+    conn.AI.send(JSON.stringify({ ...parsedMsg, requester }));
+  } else if (parsedMsg.request == "open") {
+    let id = uuidv4();
+    conn.clientsID[id] = ws;
+    conn.clientsWs[ws] = id;
+  } else {
+    for (const c in conn.clientsID) {
+      if (ws != c) {
+        c.send(JSON.stringify({ message: parsedMsg.message }));
+      }
+    }
+  }
+}
+
+function handleAI(parsedMsg) {
+  // Register the AI client
+  if (parsedMsg.request == "open") {
+    conn.AI = ws;
+  } else {
+    let requester = conn.clientsID[parsedMsg.requester];
+    requester.send(JSON.stringify({ message: parsedMsg.message }));
+  }
+}
 
 // ********************************************* app/http
 const app = express();
