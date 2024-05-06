@@ -2,7 +2,8 @@ const server = require("http").createServer();
 const express = require("express");
 const WebSocket = require("ws");
 const { v4: uuidv4 } = require("uuid");
-import OpenAI from "openai";
+const OpenAI = require("openai");
+const dotenv = require("dotenv").config();
 
 const PORT = process.env.PORT || 5000;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -11,7 +12,7 @@ const openai = new OpenAI();
 
 async function openAiVision(params) {
   const response = await openai.chat.completions.create({
-    model: "gpt-4-turbo",
+    model: "gpt-3.5-turbo",
     messages: [
       {
         role: "user",
@@ -29,6 +30,7 @@ async function openAiVision(params) {
   });
   console.log(response.choices[0]);
 }
+openAiVision();
 async function openAiImages(params) {
   const image = await openai.images.generate({
     model: "dall-e-3",
@@ -37,7 +39,7 @@ async function openAiImages(params) {
 
   console.log(image.data);
 }
-
+openAiImages();
 // ***************************************************** WebSocket
 const wss = new WebSocket.Server({ server: server });
 let conn = { AI: null, clientsID: {}, clientsWs: {} };
