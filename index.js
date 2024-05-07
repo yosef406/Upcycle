@@ -3,6 +3,7 @@ const express = require("express");
 const WebSocket = require("ws");
 const { v4: uuidv4 } = require("uuid");
 const OpenAI = require("openai");
+const { type } = require("os");
 const dotenv = require("dotenv").config();
 
 const PORT = process.env.PORT || 5000;
@@ -10,18 +11,82 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 // ***************************************************** open ai
 const openai = new OpenAI();
 
-async function openAiVision(params) {
+async function openAiVisionUpcycle({ image64 }) {
+  let schema = JSON.stringify({
+    objectDescription: "describe the objects in the image",
+    list: [
+      {
+        number: 1,
+        title: "a short title that describes the idea",
+        ideaDescription:
+          "describe the idea, what will be the new way to use this object, how to upcycle it",
+        imageDescription:
+          "describe how the new upcycled object should look like",
+      },
+      {
+        number: 2,
+        title: "a short title that describes the idea",
+        ideaDescription:
+          "describe the idea, what will be the new way to use this object, how to upcycle it",
+        imageDescription:
+          "describe how the new upcycled object should look like",
+      },
+      {
+        number: 3,
+        title: "a short title that describes the idea",
+        ideaDescription:
+          "describe the idea, what will be the new way to use this object, how to upcycle it",
+        imageDescription:
+          "describe how the new upcycled object should look like",
+      },
+      {
+        number: 4,
+        title: "a short title that describes the idea",
+        ideaDescription:
+          "describe the idea, what will be the new way to use this object, how to upcycle it",
+        imageDescription:
+          "describe how the new upcycled object should look like",
+      },
+      {
+        number: 5,
+        title: "a short title that describes the idea",
+        ideaDescription:
+          "describe the idea, what will be the new way to use this object, how to upcycle it",
+        imageDescription:
+          "describe how the new upcycled object should look like",
+      },
+    ],
+  });
+
   const response = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
+    model: "gpt-4-turbo",
     messages: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "text",
+            text: `
+      you are a helpful AI assistant.
+      you will get an image of an object or a few objects, 
+      return a list of 5 ideas to upcycle
+       the objects in the image, 
+       the objects will be thrown in the trash so the idea is to find a new use for it instead if throwing it into the trash,  
+       for reach idea return the idea suggestion and an image description 
+       of the idea and how it should look like, 
+       Output in JSON using the schema defined here: ${schema}
+       `,
+          },
+        ],
+      },
       {
         role: "user",
         content: [
-          { type: "text", text: "What’s in this image?" },
+          { type: "text", text: "the image to generate ideas for" },
           {
             type: "image_url",
             image_url: {
-              url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+              url: `data:image/jpeg;base64,${image64}`,
             },
           },
         ],
@@ -30,88 +95,13 @@ async function openAiVision(params) {
   });
   console.log(response.choices[0]);
 }
-openAiVision();
-async function openAiImages(params) {
+async function openAiImages({ prompt }) {
   const image = await openai.images.generate({
     model: "dall-e-3",
-    prompt: "A cute baby sea otter",
+    prompt,
   });
 
   console.log(image.data);
-}
-openAiImages();
-// ***************************************************** WebSocket
-const wss = new WebSocket.Server({ server: server });
-let conn = { AI: null, clientsID: {}, clientsWs: {} };
-
-wss.on("connection", (ws) => {
-  console.log("Client connected");
-
-  ws.on("message", (msg) => {
-    let parsedMsg = null;
-    try {
-      parsedMsg = JSON.parse(msg.toString());
-    } catch (error) {
-      console.log("Failed to parse message:", error);
-      return;
-    }
-
-    if (parsedMsg) {
-      console.log("Received message of type:", parsedMsg.type);
-      switch (parsedMsg.type) {
-        case "client":
-          handleClient(ws, parsedMsg);
-          break;
-        case "AI":
-          handleAI(ws, parsedMsg);
-          break;
-        default:
-          console.log("Unhandled message type:", parsedMsg.type);
-      }
-    }
-  });
-
-  ws.on("close", () => {
-    console.log("Client disconnected");
-    if (ws === conn.AI) {
-      console.log("AI client disconnected");
-      conn.AI = null;
-    } else {
-      let id = conn.clientsWs[ws];
-      if (id) {
-        delete conn.clientsID[id];
-        delete conn.clientsWs[ws];
-      }
-    }
-  });
-});
-
-function handleClient(ws, parsedMsg) {
-  if (parsedMsg.request == "AI" && conn.AI.readyState === WebSocket.OPEN) {
-    // send the id of the requester
-    let requester = conn.clientsWs[ws];
-    conn.AI.send(JSON.stringify({ ...parsedMsg, requester }));
-  } else if (parsedMsg.request == "open") {
-    let id = uuidv4();
-    conn.clientsID[id] = ws;
-    conn.clientsWs[ws] = id;
-  } else {
-    for (const c in conn.clientsID) {
-      if (ws != c) {
-        c.send(JSON.stringify({ message: parsedMsg.message }));
-      }
-    }
-  }
-}
-
-function handleAI(ws, parsedMsg) {
-  // Register the AI client
-  if (parsedMsg.request == "open") {
-    conn.AI = ws;
-  } else {
-    let requester = conn.clientsID[parsedMsg.requester];
-    requester.send(JSON.stringify({ message: parsedMsg.message }));
-  }
 }
 
 // ********************************************* app/http
