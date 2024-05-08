@@ -1,11 +1,9 @@
 const server = require("http").createServer();
 const express = require("express");
-const WebSocket = require("ws");
 const { v4: uuidv4 } = require("uuid");
 const OpenAI = require("openai");
-const { type } = require("os");
 const dotenv = require("dotenv").config();
-
+const cors = require("cors");
 const PORT = process.env.PORT || 5000;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 // ***************************************************** open ai
@@ -13,8 +11,18 @@ const openai = new OpenAI();
 
 async function openAiVisionUpcycle({ image64 }) {
   let schema = JSON.stringify({
+    status:
+      "true or false, true if the object can be upcycled, false if it cant be upcycled",
     objectDescription: "describe the objects in the image",
     list: [
+      {
+        number: 0,
+        title: "a short title that describes the idea",
+        ideaDescription:
+          "describe the idea, what will be the new way to use this object, how to upcycle it",
+        imageDescription:
+          "describe how the new upcycled object should look like",
+      },
       {
         number: 1,
         title: "a short title that describes the idea",
@@ -47,14 +55,6 @@ async function openAiVisionUpcycle({ image64 }) {
         imageDescription:
           "describe how the new upcycled object should look like",
       },
-      {
-        number: 5,
-        title: "a short title that describes the idea",
-        ideaDescription:
-          "describe the idea, what will be the new way to use this object, how to upcycle it",
-        imageDescription:
-          "describe how the new upcycled object should look like",
-      },
     ],
   });
 
@@ -74,7 +74,13 @@ async function openAiVisionUpcycle({ image64 }) {
        the objects will be thrown in the trash so the idea is to find a new use for it instead if throwing it into the trash,  
        for reach idea return the idea suggestion and an image description 
        of the idea and how it should look like, 
-       Output in JSON using the schema defined here: ${schema}
+       Output in JSON using the schema defined here: ${schema},
+       in case the image is not of an object that can be upcycled return in the following schema: 
+       {status:
+        "true or false, true if the object can be upcycled, false if it cant be upcycled",
+      objectDescription: "describe the objects in the image",
+      "reason":"the reason that the image cant be upcycled"
+    }
        `,
           },
         ],
@@ -86,45 +92,69 @@ async function openAiVisionUpcycle({ image64 }) {
           {
             type: "image_url",
             image_url: {
-              url: `data:image/jpeg;base64,${image64}`,
+              url: image64,
             },
           },
         ],
       },
     ],
   });
-  console.log(response.choices[0]);
+  return JSON.parse(response.choices[0].message.content);
 }
-async function openAiImages({ prompt }) {
+
+async function openAiImage(imageDescription) {
   const image = await openai.images.generate({
     model: "dall-e-3",
-    prompt,
+    prompt: imageDescription,
   });
+  return image.data;
+}
 
-  console.log(image.data);
+async function openAIImageAll(list) {
+  let promises = [];
+  let newList = [...list];
+  list.forEach((element) => {
+    promises.push(
+      openAiImage(element.imageDescription).then((data) => {
+        newList[element.number]["imageData"] = data;
+      })
+    );
+  });
+  await Promise.all(promises);
+  return newList;
 }
 
 // ********************************************* app/http
 const app = express();
-app.use(express.json());
+app.use(cors());
+app.use(express.json({ limit: "20mb" }));
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 
-app.post("/add-to-cart", (req, res) => {
-  const { productId } = req.body;
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  const uuid = uuidv4(); // Generate a unique ID
-  responses[uuid] = res; // Map the response object to the ID
+let images64 = {};
 
-  // Send a message to the AI client
-  if (clients.AI) {
-    clients.AI.send(
-      JSON.stringify({ type: "add-to-cart", uuid: uuid, productId: productId })
-    );
-  } else {
-    res.status(500).send({ error: "AI client not connected" });
+app.post("/new_image", (req, res) => {
+  try {
+    const { image64 } = req.body;
+    const id = uuidv4();
+    images64[id] = image64;
+    res.send({ imageID: id });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ message: "An error occurred while processing your request." });
   }
-  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+});
+
+app.post("/upcycle_for_image", async (req, res) => {
+  const { imageID } = req.body;
+  console.log(imageID);
+  const image64 = images64[imageID];
+  let aiResponse = await openAiVisionUpcycle({ image64 });
+  aiResponse.list = await openAIImageAll(aiResponse.list);
+  delete images64[imageID];
+  res.send({ aiResponse });
 });
 
 server.on("request", app);
