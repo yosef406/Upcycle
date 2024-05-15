@@ -140,6 +140,58 @@ async function openAiEcho_sort({ image64 }) {
   return JSON.parse(response.choices[0].message.content);
 }
 
+async function green_gear_AI({ plants }) {
+  let schema = JSON.stringify({
+    optimal_conditions: {
+      pH: {
+        min: "max value for ph",
+        max: "max value for ph",
+      },
+      EC: {
+        min: "min value for EC",
+        max: "max value for EC",
+      },
+      temperature: {
+        min: "min temperature",
+        max: "max temperature",
+      },
+      humidity: {
+        min: "min humidity",
+        max: "max humidity",
+      },
+      plants: [
+        { name: "name of the plant", info: "general info about the plant" },
+      ],
+    },
+  });
+  const response = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "text",
+            text: `
+      you are a helpful AI assistant.
+      you will get a list of plants and you will return the optimal conditions for growing the plants in a hydroponic farm,
+      and some general info about each plant,
+      return in a json format and use this schema: ${schema}
+       `,
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "the image to analyze the material for" },
+        ],
+      },
+    ],
+  });
+  return JSON.parse(response.choices[0].message.content);
+}
+
 async function openAiImage(imageDescription) {
   const image = await openai.images.generate({
     model: "dall-e-3",
@@ -201,6 +253,13 @@ app.post("/upcycle_for_image", async (req, res) => {
 app.post("/eco_sort", async (req, res) => {
   const { image64 } = req.body;
   openAiEcho_sort({ image64 }).then((aiResponse) => {
+    res.send({ aiResponse });
+  });
+});
+
+app.post("/green_gear", async (req, res) => {
+  let { plants } = req.body;
+  green_gear_AI({ plants }).then((aiResponse) => {
     res.send({ aiResponse });
   });
 });
