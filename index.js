@@ -101,6 +101,44 @@ async function openAiVisionUpcycle({ image64 }) {
   });
   return JSON.parse(response.choices[0].message.content);
 }
+async function openAiEcho_sort({ image64 }) {
+  let schema = JSON.stringify({
+    material:
+      "the material that the object is most likely made of, (metal or plastic)",
+  });
+  const response = await openai.chat.completions.create({
+    model: "gpt-4-turbo",
+    messages: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "text",
+            text: `
+      you are a helpful AI assistant.
+      you will get an image of an object, 
+      return if the object is made of plastic or metal,
+      return in a json format and use this schema: ${schema}
+       `,
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "the image to analyze the material for" },
+          {
+            type: "image_url",
+            image_url: {
+              url: image64,
+            },
+          },
+        ],
+      },
+    ],
+  });
+  return JSON.parse(response.choices[0].message.content);
+}
 
 async function openAiImage(imageDescription) {
   const image = await openai.images.generate({
@@ -151,10 +189,20 @@ app.post("/upcycle_for_image", async (req, res) => {
   const { imageID } = req.body;
   console.log(imageID);
   const image64 = images64[imageID];
-  let aiResponse = await openAiVisionUpcycle({ image64 });
-  aiResponse.list = await openAIImageAll(aiResponse.list);
-  delete images64[imageID];
-  res.send({ aiResponse });
+  openAiVisionUpcycle({ image64 }).then(async (aiResponse) => {
+    openAIImageAll(aiResponse.list).then((list) => {
+      aiResponse.list = list;
+      delete images64[imageID];
+      res.send({ aiResponse });
+    });
+  });
+});
+
+app.post("/eco_sort", async (req, res) => {
+  const { image64 } = req.body;
+  openAiEcho_sort({ image64 }).then((aiResponse) => {
+    res.send({ aiResponse });
+  });
 });
 
 server.on("request", app);
