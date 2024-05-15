@@ -2,19 +2,160 @@
 <html>
 
 <head>
-    <title>WebSocket Client</title>
-    <script src="./jquery-3.7.1.min.js"></script>
-    <script type="module" src="./script.js" defer></script>
-    <link rel="stylesheet" href="./style.css">
+    <title>Hydroponics Tower</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f5;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 80%;
+            margin: auto;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        h1,
+        h2 {
+            text-align: center;
+        }
+
+        .sensor-values,
+        .set-defaults,
+        .optimal-conditions {
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        p {
+            font-size: 1.2em;
+        }
+
+        input[type="number"],
+        input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-top: 10px;
+            font-size: 1em;
+            color: #fff;
+            background-color: #007BFF;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #optimalConditions,
+        #plantInfo {
+            font-family: "Courier New", Courier, monospace;
+            white-space: pre-wrap;
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .fa-leaf {
+            color: #28a745;
+        }
+    </style>
+    <script>
+        var socket = io();
+
+        socket.on('sensor_data', function (data) {
+            document.getElementById('phValue').innerText = data.pH;
+            document.getElementById('ecValue').innerText = data.EC;
+            document.getElementById('tempValue').innerText = data.temperature;
+            document.getElementById('humidityValue').innerText = data.humidity;
+        });
+
+        function setDefaults() {
+            var ph = document.getElementById('setPh').value;
+            var ec = document.getElementById('setEc').value;
+            var temperature = document.getElementById('setTemp').value;
+            var humidity = document.getElementById('setHumidity').value;
+
+            fetch('/set_defaults', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pH: ph, EC: ec, temperature: temperature, humidity: humidity })
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    alert('Default values updated successfully.');
+                }
+            });
+        }
+
+        function fetchOptimalConditions() {
+            var plantNames = document.getElementById('plantNames').value.split(',');
+
+            fetch('/get_optimal_conditions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ plants: plantNames })
+            }).then(response => response.json()).then(data => {
+                var optimalConditions = `Optimal Conditions - pH: ${data.optimal_conditions.pH.min} - ${data.optimal_conditions.pH.max}, EC: ${data.optimal_conditions.EC.min} - ${data.optimal_conditions.EC.max}, Temperature: ${data.optimal_conditions.temperature.min} - ${data.optimal_conditions.temperature.max}, Humidity: ${data.optimal_conditions.humidity.min} - ${data.optimal_conditions.humidity.max}`;
+                document.getElementById('optimalConditions').innerText = optimalConditions;
+
+                var plantInfo = data.plants.map(plant => `${plant.name}: ${plant.info}`).join('\n');
+                document.getElementById('plantInfo').innerText = plantInfo;
+            });
+        }
+    </script>
 </head>
 
 <body>
-    <header>
-        <h1>Upcycle Pioneers</h1>
-    </header>
-    <div id="output"></div>
-    <input id="messageInput" type="text" placeholder="Type your message here..." />
-    <button id="sendButton">Send</button>
+    <div class="container">
+        <h1><i class="fas fa-leaf"></i> Hydroponics Tower</h1>
+        <div class="sensor-values">
+            <h2>Real-Time Sensor Values</h2>
+            <p>pH: <span id="phValue">-</span></p>
+            <p>EC: <span id="ecValue">-</span></p>
+            <p>Temperature: <span id="tempValue">-</span></p>
+            <p>Humidity: <span id="humidityValue">-</span></p>
+        </div>
+        <div class="set-defaults">
+            <h2>Set Default Values</h2>
+            <p>pH: <input type="number" id="setPh" step="0.1"></p>
+            <p>EC: <input type="number" id="setEc"></p>
+            <p>Temperature: <input type="number" id="setTemp"></p>
+            <p>Humidity: <input type="number" id="setHumidity"></p>
+            <button onclick="setDefaults()">Set Defaults</button>
+        </div>
+        <div class="optimal-conditions">
+            <h2>Get Optimal Conditions</h2>
+            <p>Plant Names (comma separated): <input type="text" id="plantNames"></p>
+            <button onclick="fetchOptimalConditions()">Fetch Optimal Conditions</button>
+            <p id="optimalConditions"></p>
+            <pre id="plantInfo"></pre>
+        </div>
+    </div>
 </body>
 
 </html>
